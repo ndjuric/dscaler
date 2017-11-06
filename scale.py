@@ -2,7 +2,6 @@
 import subprocess
 import json
 import time
-import sys
 import os
 
 
@@ -20,7 +19,7 @@ class Command(object):
     def is_json(text):
         try:
             json_object = json.loads(text)
-        except ValueError, e:
+        except ValueError:
             return False
         return True
 
