@@ -96,7 +96,7 @@ class Digitalocean(SSH):
             fh = open(SWARM_DIR + '/create.sh', 'w')
             fh.write(SCRIPT_CREATE)
             fh.close()
-            self.run('./scripts/swarm_create.sh {0} {1} {2}'.format(new_droplet, TAG, ssh_key))
+            self.run('./scripts/swarm_create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
         else:
             result = self.execute('root', droplet_ip, 'docker swarm join-token -q manager')
             swarm_key = ''.join(result)
@@ -107,8 +107,7 @@ class Digitalocean(SSH):
 
             self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
             print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
-            print './scripts/swarm_join.sh {0} {1} {2}'.format(new_droplet, TAG, ssh_key)
-            self.run('./scripts/swarm_join.sh {0} {1} {2}'.format(new_droplet, TAG, ssh_key))
+            self.run('./scripts/swarm_join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
 
     @staticmethod
     def get_public_ip(droplet):
