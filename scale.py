@@ -53,10 +53,9 @@ class SSH(Command):
 
 
 class Digitalocean(SSH):
-    def __init__(self, doctl_path, token):
+    def __init__(self, doctl_path):
         super(Digitalocean, self).__init__()
         self.doctl = doctl_path
-        self.token = token
         self.filter_tag = False
 
     def set_filter_tag(self, tag):
@@ -121,7 +120,7 @@ class Digitalocean(SSH):
 
 
 def list_droplets():
-    doctl = Digitalocean(DOCTL, TOKEN)
+    doctl = Digitalocean(DOCTL)
     doctl.set_filter_tag(TAG)
     droplets = doctl.ls()
     for droplet in droplets:
@@ -130,23 +129,14 @@ def list_droplets():
 
 
 def main():
-    doctl = Digitalocean(DOCTL, TOKEN)
+    doctl = Digitalocean(DOCTL)
     doctl.set_filter_tag(TAG)
     doctl.add_manager()
 
 
 if __name__ == '__main__':
-    # user = 'root'
-    # host = "207.154.212.219"
-    # command = "uname -a"
-    # ssh = SSH()
-    # result = ssh.run(user, host, command)
-    # result = ssh.get_local_fingerprint()
-
     DOCTL = "/usr/local/bin/doctl"
-    TOKEN = "DIGITALOCEAN_API_TOKEN"
-    TAG = "swarm"
-    SWARM_DIR = 'swarm'
+    SWARM_DIR = TAG = "swarm"
 
     SCRIPT_CREATE = "#!/bin/bash\n"
     SCRIPT_CREATE += "ufw allow 2377/tcp\n"
@@ -161,4 +151,3 @@ if __name__ == '__main__':
     SCRIPT_JOIN += "docker swarm join --advertise-addr \"${{PUBLIC_IPV4}}:2377\" --token \"{0}\" \"{1}:2377\"\n"
 
     main()
-    # list_droplets()
