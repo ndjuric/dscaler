@@ -44,8 +44,9 @@ class SSH(Command):
     def execute(self, user, host, command):
         return self.run(["ssh -o \"StrictHostKeyChecking no\" %s@%s %s" % (user, host, command)])
 
-    def get_local_fingerprint(self):
-        ssh_key = self.run(['ssh-keygen -E md5 -lf /home/ndjuric/.ssh/id_rsa.pub'])
+    def get_local_fingerprint(self, path_to_public_key):
+        ssh_keygen_cmd = 'ssh-keygen -E md5 -lf {0}'.format(path_to_public_key)
+        ssh_key = self.run([ssh_keygen_cmd])
         ssh_key = ''.join(ssh_key)
         key = ssh_key.split(' ')[1][4:]
         return key
@@ -82,9 +83,9 @@ class Digitalocean(SSH):
             return self.run('./scripts/create-tag.sh ' + str(self.filter_tag))
         return False
 
-    def add_manager(self):
+    def add_manager(self, public_key_file):
         self.create_tag()
-        ssh_key = self.get_local_fingerprint()
+        ssh_key = self.get_local_fingerprint(public_key_file)
 
         if not os.path.exists(SWARM_DIR):
             os.makedirs(SWARM_DIR)
@@ -96,7 +97,7 @@ class Digitalocean(SSH):
             fh = open(SWARM_DIR + '/create.sh', 'w')
             fh.write(SCRIPT_CREATE)
             fh.close()
-            self.run('./scripts/swarm_create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
+            self.run('./scripts/swarm-create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
         else:
             result = self.execute('root', droplet_ip, 'docker swarm join-token -q manager')
             swarm_key = ''.join(result)
@@ -107,7 +108,7 @@ class Digitalocean(SSH):
 
             self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
             print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
-            self.run('./scripts/swarm_join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
+            self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
 
     @staticmethod
     def get_public_ip(droplet):
@@ -129,11 +130,12 @@ def list_droplets():
 def main():
     doctl = Digitalocean(DOCTL)
     doctl.set_filter_tag(TAG)
-    doctl.add_manager()
+    doctl.add_manager(PK_FILE)
 
 
 if __name__ == '__main__':
     DOCTL = "/usr/local/bin/doctl"
+    PK_FILE = "/home/ndjuric/.ssh/id_rsa.pub"
     SWARM_DIR = TAG = "swarm"
 
     SCRIPT_CREATE = "#!/bin/bash\n"
