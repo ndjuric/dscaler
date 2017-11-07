@@ -6,4 +6,4 @@
 		--enable-private-networking \
 		--region ams3 \
 		--ssh-keys $3 \
-		--user-data-file ./cloud-init/join.sh
+		--user-data-file ./$4/join.sh

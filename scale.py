@@ -53,10 +53,14 @@ class SSH(Command):
 
 
 class Digitalocean(SSH):
-    def __init__(self, doctl_path):
+    def __init__(self, doctl_path, public_key_file):
         super(Digitalocean, self).__init__()
         self.doctl = doctl_path
         self.filter_tag = False
+        self.ssh_key = self.get_local_fingerprint(public_key_file)
+
+        if not os.path.exists(SWARM_DIR):
+            os.makedirs(SWARM_DIR)
 
     def set_filter_tag(self, tag):
         self.filter_tag = tag
@@ -83,32 +87,56 @@ class Digitalocean(SSH):
             return self.run('./scripts/create-tag.sh ' + str(self.filter_tag))
         return False
 
-    def add_manager(self, public_key_file):
-        self.create_tag()
-        ssh_key = self.get_local_fingerprint(public_key_file)
+    @staticmethod
+    def generate_swarm_join(swarm_key, droplet_ip):
+        fh = open(SWARM_DIR + '/join.sh', 'w')
+        fh.write(SCRIPT_JOIN.format(swarm_key, droplet_ip))
+        fh.close()
 
-        if not os.path.exists(SWARM_DIR):
-            os.makedirs(SWARM_DIR)
+    @staticmethod
+    def generate_swarm_create():
+        fh = open(SWARM_DIR + '/create.sh', 'w')
+        fh.write(SCRIPT_CREATE)
+        fh.close()
+
+    def add_manager(self):
+        self.create_tag()
 
         droplet_ip = self.list_single_node()
         new_droplet = TAG + '-' + str(time.time())
         if not droplet_ip:
             print "Creating a new swarm host: {0} (takes about a minute)".format(new_droplet)
-            fh = open(SWARM_DIR + '/create.sh', 'w')
-            fh.write(SCRIPT_CREATE)
-            fh.close()
-            self.run('./scripts/swarm-create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
-        else:
-            result = self.execute('root', droplet_ip, 'docker swarm join-token -q manager')
-            swarm_key = ''.join(result)
+            self.generate_swarm_create()
+            self.run('./scripts/swarm-create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
+            return True
 
-            fh = open(SWARM_DIR + '/join.sh', 'w')
-            fh.write(SCRIPT_JOIN.format(swarm_key, droplet_ip))
-            fh.close()
+        result = self.execute('root', droplet_ip, 'docker swarm join-token -q manager')
+        swarm_key = ''.join(result)
 
-            self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
-            print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
-            self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, ssh_key, SWARM_DIR))
+        self.generate_swarm_join(swarm_key, droplet_ip)
+
+        self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
+        print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
+        self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
+        return True
+
+    def add_worker(self):
+        droplet_ip = self.list_single_node()
+
+        if not droplet_ip:
+            print "In order to add a worker node, a manager node must exist first"
+            return False
+
+        new_droplet = TAG + '-' + str(time.time())
+        result = self.execute('root', droplet_ip, 'docker swarm join-token -q worker')
+        swarm_key = ''.join(result)
+        self.generate_swarm_join(swarm_key, droplet_ip)
+        self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
+
+        print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
+        print './scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR)
+        self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
+        return True
 
     @staticmethod
     def get_public_ip(droplet):
@@ -118,8 +146,9 @@ class Digitalocean(SSH):
         return False
 
 
+# temporary
 def list_droplets():
-    doctl = Digitalocean(DOCTL)
+    doctl = Digitalocean(DOCTL, PK_FILE)
     doctl.set_filter_tag(TAG)
     droplets = doctl.ls()
     for droplet in droplets:
@@ -127,10 +156,17 @@ def list_droplets():
         print droplet_ip
 
 
-def main():
-    doctl = Digitalocean(DOCTL)
+def add_manager():
+    doctl = Digitalocean(DOCTL, PK_FILE)
     doctl.set_filter_tag(TAG)
-    doctl.add_manager(PK_FILE)
+    doctl.add_manager()
+
+
+def main():
+    doctl = Digitalocean(DOCTL, PK_FILE)
+    doctl.set_filter_tag(TAG)
+    doctl.add_worker()
+    # add worker
 
 
 if __name__ == '__main__':
