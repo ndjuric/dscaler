@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import subprocess
-import json
 import time
 import os
 
@@ -9,22 +8,8 @@ class Command(object):
     def __init__(self):
         pass
 
-    def parse_json(self, result):
-        if not self.is_json(''.join(result)):
-            return {'status': False, 'message': 'Not a JSON object'}
-
-        return json.loads(''.join(result))
-
     @staticmethod
-    def is_json(text):
-        try:
-            json_object = json.loads(text)
-        except ValueError:
-            return False
-        return True
-
-    @staticmethod
-    def run(command):
+    def local_exec(command):
         command = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = command.stdout.readlines()
         if not result:
@@ -41,12 +26,12 @@ class SSH(Command):
     def __init__(self):
         super(SSH, self).__init__()
 
-    def execute(self, user, host, command):
-        return self.run(["ssh -o \"StrictHostKeyChecking no\" %s@%s %s" % (user, host, command)])
+    def remote_exec(self, user, host, command):
+        return self.local_exec(["ssh -o \"StrictHostKeyChecking no\" %s@%s %s" % (user, host, command)])
 
     def get_local_fingerprint(self, path_to_public_key):
         ssh_keygen_cmd = 'ssh-keygen -E md5 -lf {0}'.format(path_to_public_key)
-        ssh_key = self.run([ssh_keygen_cmd])
+        ssh_key = self.local_exec([ssh_keygen_cmd])
         ssh_key = ''.join(ssh_key)
         key = ssh_key.split(' ')[1][4:]
         return key
@@ -56,7 +41,9 @@ class Digitalocean(SSH):
     def __init__(self, doctl_path, public_key_file):
         super(Digitalocean, self).__init__()
         self.doctl = doctl_path
-        self.filter_tag = False
+        self.filter_tag = TAG
+        self.tags = self.set_node_tags()
+        self.allowed_node_types = ['manager', 'worker']
         self.ssh_key = self.get_local_fingerprint(public_key_file)
 
         if not os.path.exists(SWARM_DIR):
@@ -64,27 +51,113 @@ class Digitalocean(SSH):
 
     def set_filter_tag(self, tag):
         self.filter_tag = tag
+        self.set_node_tags()
 
-    def ls(self):
-        droplet_list = self.run('./scripts/list.sh')
-        droplets = self.parse_json(droplet_list)
-        filtered = []
-        for droplet in droplets:
-            if ('tags' in droplet) and self.filter_tag:
-                if self.filter_tag in droplet['tags']:
-                    filtered.append(droplet)
-        if not filtered:
-            return droplets
+    def set_node_tags(self):
+        self.tags = {
+            'manager': self.filter_tag + '-manager',
+            'worker': self.filter_tag + '-worker'
+        }
+        return self.tags
 
-        return filtered
+    def swarm_list(self, node_type):
+        result = self.local_exec('./scripts/swarm-list.sh {0}'.format(self.tags[node_type]))
+        if not result:
+            return []
 
-    def list_single_node(self):
-        droplet_list = self.run('./scripts/list-single-node.sh')
-        return ''.join(droplet_list)
+        swarm = []
+        for node in result:
+            node_info = node.split()
+            swarm.append({
+                'name': node_info[0],
+                'ip': node_info[1]
+            })
+        return swarm
 
-    def create_tag(self):
+    def swarm_destroy(self):
+        print 'Destroying swarm {0}'.format(self.filter_tag)
+        swarm = []
+        workers = self.swarm_list('worker')
+        managers = self.swarm_list('manager')
+
+        if workers:
+            swarm += workers
+
+        if managers:
+            swarm += managers
+
+        for host in swarm:
+            self.purge_droplet(host['name'])
+
+    def get_node(self, node_type):
+        result = self.local_exec('./scripts/swarm-list.sh {0} | head -n1'.format(self.tags[node_type]))
+        if not result:
+            return False
+        node_info = result[0].split()
+        node = {
+            'name': node_info[0],
+            'ip': node_info[1]
+        }
+        return node
+
+    def get_number_of_nodes(self):
+        result = self.local_exec('./scripts/swarm-list.sh {0} | wc -l'.format(self.filter_tag))
+        return ''.join(result)
+
+    def remove_worker(self):
+        node_type = 'worker'
+        worker_info = self.get_node(node_type)
+        if not worker_info:
+            print "Worker removal failed, there are no workers tagged \"{0}\"".format(self.tags[node_type])
+            return False
+
+        print "Leaving the swarm..."
+        self.drain_containers(worker_info['ip'], worker_info['name'])
+        time.sleep(2)
+        self.remote_exec(
+            'root', worker_info['ip'], 'docker node rm {0} -f'.format(worker_info['name'])
+        )
+        self.purge_droplet(worker_info['name'])
+
+    def remove_manager(self):
+        node_type = 'manager'
+        number_of_managers = self.get_number_of_nodes()
+
+        if int(number_of_managers) < 2:
+            print "You need at least 2 managers in order to remove 1 manager."
+            return False
+
+        manager_info = self.get_node(node_type)
+        if not manager_info:
+            print "Node removal failed, there are no nodes tagged \"{0}\"".format(self.tags[node_type])
+            return False
+
+        print "Leaving the swarm..."
+        self.drain_containers(manager_info['ip'], manager_info['name'])
+        time.sleep(2)
+        self.demote_manager(manager_info['ip'], manager_info['name'])
+        self.purge_droplet(manager_info['name'])
+
+    def drain_containers(self, ip, name):
+        print 'Drainining containers from {0}@{1}...'.format(name, ip)
+        self.remote_exec('root', ip, 'docker node update --availability drain {0}'.format(name))
+
+    def demote_manager(self, ip, name):
+        print 'Demoting {0}@{1} to worker...'.format(name, ip)
+        self.remote_exec('root', ip, 'docker node demote {0}'.format(name))
+
+    def purge_droplet(self, droplet_name):
+        print "Purging droplet {0}...".format(droplet_name)
+        return self.local_exec('./scripts/droplet-purge.sh {0}'.format(droplet_name))
+
+    def create_tag(self, node_type='worker'):
+        if node_type not in self.allowed_node_types:
+            print "Node type not allowed. Must be either 'manager' or 'worker'."
+            return False
+
         if self.filter_tag:
-            return self.run('./scripts/create-tag.sh ' + str(self.filter_tag))
+            return self.local_exec('./scripts/create-tag.sh {0}'.format(str(self.tags[node_type])))
+
         return False
 
     @staticmethod
@@ -99,44 +172,67 @@ class Digitalocean(SSH):
         fh.write(SCRIPT_CREATE)
         fh.close()
 
-    def add_manager(self):
-        self.create_tag()
-
-        droplet_ip = self.list_single_node()
-        new_droplet = TAG + '-' + str(time.time())
-        if not droplet_ip:
-            print "Creating a new swarm host: {0} (takes about a minute)".format(new_droplet)
-            self.generate_swarm_create()
-            self.run('./scripts/swarm-create.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
-            return True
-
-        result = self.execute('root', droplet_ip, 'docker swarm join-token -q manager')
-        swarm_key = ''.join(result)
-
-        self.generate_swarm_join(swarm_key, droplet_ip)
-
-        self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
-        print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
-        self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
-        return True
-
-    def add_worker(self):
-        droplet_ip = self.list_single_node()
-
-        if not droplet_ip:
-            print "In order to add a worker node, a manager node must exist first"
+    def swarm_join(self, droplet_info, node_type='worker'):
+        if node_type not in self.allowed_node_types:
+            print "Node type not allowed. Must be either 'manager' or 'worker'."
             return False
 
-        new_droplet = TAG + '-' + str(time.time())
-        result = self.execute('root', droplet_ip, 'docker swarm join-token -q worker')
+        result = self.remote_exec('root', droplet_info['ip'], 'docker swarm join-token -q {0}'.format(node_type))
         swarm_key = ''.join(result)
-        self.generate_swarm_join(swarm_key, droplet_ip)
-        self.run("chmod a+x {0}/*.sh".format(SWARM_DIR))
 
-        print "Joining an existing swarm: {0}/{1} (takes about a minute)".format(new_droplet, droplet_ip)
-        print './scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR)
-        self.run('./scripts/swarm-join.sh {0} {1} {2} {3}'.format(new_droplet, TAG, self.ssh_key, SWARM_DIR))
+        self.generate_swarm_join(swarm_key, droplet_info['ip'])
+        self.local_exec("chmod a+x {0}/*.sh".format(SWARM_DIR))
+
+        print "Joining an existing swarm: {0}@{1} (takes about a minute)".format(
+            droplet_info['name'],
+            droplet_info['ip']
+        )
+
+        droplet_name = "{0}-{1}".format(self.tags[node_type], str(time.time()))
+        self.local_exec(
+            './scripts/swarm-join.sh {0} {1} {2} {3}'.format(
+                droplet_name,
+                self.tags[node_type],
+                self.ssh_key,
+                SWARM_DIR
+            )
+        )
         return True
+
+    ''' Use provided tag to lookup swarm status. If there's no swarm bring up a VM and set it up as a swarm manager. '''
+    def add_manager(self):
+        node_type = "manager"
+        droplet_info = self.get_node('manager')
+
+        if droplet_info is not False:
+            self.swarm_join(droplet_info, node_type)
+            return True
+
+        self.create_tag(node_type)
+        droplet_name = "{0}-{1}".format(self.tags[node_type], str(time.time()))
+        print "Creating a new swarm host: {0} (takes about a minute)".format(droplet_name)
+        self.generate_swarm_create()
+
+        self.local_exec(
+            './scripts/swarm-create.sh {0} {1} {2} {3}'.format(
+                droplet_name,
+                self.tags[node_type],
+                self.ssh_key,
+                SWARM_DIR
+            )
+        )
+        return True
+
+    ''' Add a worker VM to Digitalocean. Use provided tag to join a swarm, if swarm manager VM exists. '''
+    def add_worker(self):
+        swarm_manager = self.get_node('manager')
+
+        if swarm_manager is not False:
+            self.swarm_join(swarm_manager, 'worker')
+            return True
+
+        print "In order to add a worker node you first need to create a manager node."
+        return False
 
     @staticmethod
     def get_public_ip(droplet):
@@ -147,26 +243,19 @@ class Digitalocean(SSH):
 
 
 # temporary
-def list_droplets():
+def test():
     doctl = Digitalocean(DOCTL, PK_FILE)
-    doctl.set_filter_tag(TAG)
-    droplets = doctl.ls()
-    for droplet in droplets:
-        droplet_ip = doctl.get_public_ip(droplet)
-        print droplet_ip
-
-
-def add_manager():
-    doctl = Digitalocean(DOCTL, PK_FILE)
-    doctl.set_filter_tag(TAG)
-    doctl.add_manager()
+    doctl.set_filter_tag('makonda')
+    worker_status = doctl.add_worker()
+    if worker_status is False:
+        doctl.add_manager()
 
 
 def main():
     doctl = Digitalocean(DOCTL, PK_FILE)
-    doctl.set_filter_tag(TAG)
-    doctl.add_worker()
-    # add worker
+    doctl.set_filter_tag('makonda')
+    # doctl.add_worker()
+    doctl.swarm_destroy()
 
 
 if __name__ == '__main__':
