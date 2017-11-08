@@ -236,7 +236,7 @@ class Digitalocean(SSH):
 
     def add_manager(self):
         node_type = "manager"
-        droplet_info = self.get_node('manager')
+        droplet_info = self.get_node(node_type)
 
         if droplet_info is not False:
             self.swarm_join(droplet_info, node_type)
