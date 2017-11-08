@@ -38,6 +38,8 @@ class SSH(Command):
 
 
 class Digitalocean(SSH):
+    """ Digitalocean infrastructure management class """
+
     def __init__(self, doctl_path, public_key_file):
         super(Digitalocean, self).__init__()
         self.doctl = doctl_path
@@ -50,11 +52,13 @@ class Digitalocean(SSH):
             os.makedirs(SWARM_DIR)
 
     ''' Set the main tag (identifier) of the swarm, ie. name of the company, or name of the project '''
+
     def set_filter_tag(self, tag):
         self.filter_tag = tag
         self.set_node_tags()
 
     ''' Set swarm manager and worker tags, suffixes to the main tag of the swarm '''
+
     def set_node_tags(self):
         self.tags = {
             'manager': self.filter_tag + '-manager',
@@ -63,6 +67,7 @@ class Digitalocean(SSH):
         return self.tags
 
     ''' List members of the swarm of type node_type (either manager or worker) '''
+
     def swarm_list(self, node_type):
         result = self.local_exec('./scripts/swarm-list.sh {0}'.format(self.tags[node_type]))
         if not result:
@@ -79,6 +84,7 @@ class Digitalocean(SSH):
         return swarm
 
     ''' This one is pretty much straightforward. Destroys the swarm. '''
+
     def swarm_destroy(self):
         print 'Destroying swarm {0}'.format(self.filter_tag)
         swarm = []
@@ -95,6 +101,7 @@ class Digitalocean(SSH):
             self.purge_droplet(host['name'])
 
     ''' Get a single node of type node_type (either manager or worker) '''
+
     def get_node(self, node_type):
         result = self.local_exec('./scripts/swarm-list.sh {0} | head -n1'.format(self.tags[node_type]))
         if not result:
@@ -107,11 +114,13 @@ class Digitalocean(SSH):
         return node
 
     ''' Get number of nodes in the entire swarm for the set tag. '''
-    def get_number_of_nodes(self):
-        result = self.local_exec('./scripts/swarm-list.sh {0} | wc -l'.format(self.filter_tag))
+
+    def get_number_of_nodes(self, node_type):
+        result = self.local_exec('./scripts/swarm-list.sh {0} | wc -l'.format(self.tags[node_type]))
         return ''.join(result)
 
     ''' Remove a worker node from the swarm and destroy its droplet. '''
+
     def remove_worker(self):
         node_type = 'worker'
         worker_info = self.get_node(node_type)
@@ -128,6 +137,7 @@ class Digitalocean(SSH):
         self.purge_droplet(worker_info['name'])
 
     ''' Remove the swarm's manager node and destroy its droplet. '''
+
     def remove_manager(self):
         node_type = 'manager'
         number_of_managers = self.get_number_of_nodes()
@@ -148,21 +158,25 @@ class Digitalocean(SSH):
         self.purge_droplet(manager_info['name'])
 
     ''' Drain docker containers from a specified droplet IP. '''
+
     def drain_containers(self, ip, name):
         print 'Drainining containers from {0}@{1}...'.format(name, ip)
         self.remote_exec('root', ip, 'docker node update --availability drain {0}'.format(name))
 
     ''' Demote a swarm manager to worker, on a specified droplet IP. '''
+
     def demote_manager(self, ip, name):
         print 'Demoting {0}@{1} to worker...'.format(name, ip)
         self.remote_exec('root', ip, 'docker node demote {0}'.format(name))
 
     ''' Purge/destroy a digitalocean droplet. '''
+
     def purge_droplet(self, droplet_name):
         print "Purging droplet {0}...".format(droplet_name)
         return self.local_exec('./scripts/droplet-purge.sh {0}'.format(droplet_name))
 
     ''' Create a digitalocean tag, specified by node_type. '''
+
     def create_tag(self, node_type='worker'):
         if node_type not in self.allowed_node_types:
             print "Node type not allowed. Must be either 'manager' or 'worker'."
@@ -174,6 +188,7 @@ class Digitalocean(SSH):
         return False
 
     ''' Generate a swarm join script and write it to a file. '''
+
     @staticmethod
     def generate_swarm_join(swarm_key, droplet_ip):
         fh = open(SWARM_DIR + '/join.sh', 'w')
@@ -181,6 +196,7 @@ class Digitalocean(SSH):
         fh.close()
 
     ''' Generate a swarm create script and write it to a file. '''
+
     @staticmethod
     def generate_swarm_create():
         fh = open(SWARM_DIR + '/create.sh', 'w')
@@ -188,6 +204,7 @@ class Digitalocean(SSH):
         fh.close()
 
     ''' Swarm join functionality, this needs to be refactored'''
+
     def swarm_join(self, droplet_info, node_type='worker'):
         if node_type not in self.allowed_node_types:
             print "Node type not allowed. Must be either 'manager' or 'worker'."
@@ -216,6 +233,7 @@ class Digitalocean(SSH):
         return True
 
     ''' Use provided tag to lookup swarm status. If there's no swarm bring up a VM and set it up as a swarm manager. '''
+
     def add_manager(self):
         node_type = "manager"
         droplet_info = self.get_node('manager')
@@ -240,6 +258,7 @@ class Digitalocean(SSH):
         return True
 
     ''' Add a worker VM to Digitalocean. Use provided tag to join a swarm, if swarm manager VM exists. '''
+
     def add_worker(self):
         swarm_manager = self.get_node('manager')
 
@@ -252,19 +271,25 @@ class Digitalocean(SSH):
 
 
 # temporary
-def test():
+def build_infrastucture():
     doctl = Digitalocean(DOCTL, PK_FILE)
     doctl.set_filter_tag('makonda')
-    worker_status = doctl.add_worker()
-    if worker_status is False:
+
+    number_of_nodes = int(doctl.get_number_of_nodes('manager')) + int(doctl.get_number_of_nodes('worker'))
+    if int(number_of_nodes) == 0:
+        print 'Swarm does not exist, creating a new one.'
         doctl.add_manager()
+        return True
+    # worker_status = doctl.add_worker()
+    # if worker_status is False:
+    #    doctl.add_manager()
 
 
 def main():
-    doctl = Digitalocean(DOCTL, PK_FILE)
-    doctl.set_filter_tag('makonda')
-    # doctl.add_worker()
-    doctl.swarm_destroy()
+    start_time = time.time()
+    build_infrastucture()
+    end_time = time.time()
+    print 'Time elapsed: {0}s'.format(end_time - start_time)
 
 
 if __name__ == '__main__':
