@@ -86,7 +86,7 @@ class Digitalocean(SSH):
 
     def get_number_of_nodes(self, node_type):
         result = self.local_exec('./scripts/swarm-list.sh {0} | wc -l'.format(self.tags[node_type]))
-        return ''.join(result)
+        return b''.join(result)
 
     ''' Remove a worker node from the swarm and destroy its droplet. '''
 
