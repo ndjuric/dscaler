@@ -2,7 +2,7 @@
 
 import os
 import time
-from ssh import SSH
+from .ssh import SSH
 
 
 class Digitalocean(SSH):
@@ -55,7 +55,7 @@ class Digitalocean(SSH):
     ''' This one is pretty much straightforward. Destroys the swarm. '''
 
     def swarm_destroy(self):
-        print 'Destroying swarm {0}'.format(self.filter_tag)
+        print('Destroying swarm {0}'.format(self.filter_tag))
         swarm = []
         workers = self.swarm_list('worker')
         managers = self.swarm_list('manager')
@@ -94,10 +94,10 @@ class Digitalocean(SSH):
         node_type = 'worker'
         worker_info = self.get_node(node_type)
         if not worker_info:
-            print "Worker removal failed, there are no workers tagged \"{0}\"".format(self.tags[node_type])
+            print("Worker removal failed, there are no workers tagged \"{0}\"".format(self.tags[node_type]))
             return False
 
-        print "Leaving the swarm..."
+        print("Leaving the swarm...")
         self.drain_containers(worker_info['ip'], worker_info['name'])
         time.sleep(2)
         self.remote_exec(
@@ -112,15 +112,15 @@ class Digitalocean(SSH):
         number_of_managers = self.get_number_of_nodes()
 
         if int(number_of_managers) < 2:
-            print "You need at least 2 managers in order to remove 1 manager."
+            print("You need at least 2 managers in order to remove 1 manager.")
             return False
 
         manager_info = self.get_node(node_type)
         if not manager_info:
-            print "Node removal failed, there are no nodes tagged \"{0}\"".format(self.tags[node_type])
+            print("Node removal failed, there are no nodes tagged \"{0}\"".format(self.tags[node_type]))
             return False
 
-        print "Leaving the swarm..."
+        print("Leaving the swarm...")
         self.drain_containers(manager_info['ip'], manager_info['name'])
         time.sleep(2)
         self.demote_manager(manager_info['ip'], manager_info['name'])
@@ -129,26 +129,26 @@ class Digitalocean(SSH):
     ''' Drain docker containers from a specified droplet IP. '''
 
     def drain_containers(self, ip, name):
-        print 'Drainining containers from {0}@{1}...'.format(name, ip)
+        print('Drainining containers from {0}@{1}...'.format(name, ip))
         self.remote_exec('root', ip, 'docker node update --availability drain {0}'.format(name))
 
     ''' Demote a swarm manager to worker, on a specified droplet IP. '''
 
     def demote_manager(self, ip, name):
-        print 'Demoting {0}@{1} to worker...'.format(name, ip)
+        print('Demoting {0}@{1} to worker...'.format(name, ip))
         self.remote_exec('root', ip, 'docker node demote {0}'.format(name))
 
     ''' Purge/destroy a digitalocean droplet. '''
 
     def purge_droplet(self, droplet_name):
-        print "Purging droplet {0}...".format(droplet_name)
+        print("Purging droplet {0}...".format(droplet_name))
         return self.local_exec('./scripts/droplet-purge.sh {0}'.format(droplet_name))
 
     ''' Create a digitalocean tag, specified by node_type. '''
 
     def create_tag(self, node_type='worker'):
         if node_type not in self.allowed_node_types:
-            print "Node type not allowed. Must be either 'manager' or 'worker'."
+            print("Node type not allowed. Must be either 'manager' or 'worker'.")
             return False
 
         if self.filter_tag:
@@ -174,7 +174,7 @@ class Digitalocean(SSH):
 
     def swarm_join(self, droplet_info, node_type='worker'):
         if node_type not in self.allowed_node_types:
-            print "Node type not allowed. Must be either 'manager' or 'worker'."
+            print("Node type not allowed. Must be either 'manager' or 'worker'.")
             return False
 
         result = self.remote_exec('root', droplet_info['ip'], 'docker swarm join-token -q {0}'.format(node_type))
@@ -183,10 +183,10 @@ class Digitalocean(SSH):
         self.generate_swarm_join(swarm_key, droplet_info['ip'])
         self.local_exec("chmod a+x {0}/*.sh".format(self.swarm_dir))
 
-        print "Joining an existing swarm: {0}@{1} (takes about a minute)".format(
+        print("Joining an existing swarm: {0}@{1} (takes about a minute)".format(
             droplet_info['name'],
             droplet_info['ip']
-        )
+        ))
 
         droplet_name = "{0}-{1}".format(self.tags[node_type], str(time.time()))
         self.local_exec(
@@ -211,7 +211,7 @@ class Digitalocean(SSH):
 
         self.create_tag(node_type)
         droplet_name = "{0}-{1}".format(self.tags[node_type], str(time.time()))
-        print "Creating a new swarm host: {0} (takes about a minute)".format(droplet_name)
+        print("Creating a new swarm host: {0} (takes about a minute)".format(droplet_name))
         self.generate_swarm_create()
 
         self.local_exec(
@@ -233,5 +233,5 @@ class Digitalocean(SSH):
             self.swarm_join(swarm_manager, 'worker')
             return True
 
-        print "In order to add a worker node you first need to create a manager node."
+        print("In order to add a worker node you first need to create a manager node.")
         return False

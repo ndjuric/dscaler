@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from command import Command
+from .command import Command
 
 
 class SSH(Command):
