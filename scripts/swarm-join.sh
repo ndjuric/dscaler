@@ -4,6 +4,6 @@
 		--size 2gb \
 		--tag-name $2 \
 		--enable-private-networking \
-		--region ams3 \
+		--region fra1 \
 		--ssh-keys $3 \
 		--user-data-file ./$4/join.sh

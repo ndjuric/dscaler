@@ -27,7 +27,12 @@ curl https://docker.insocl.com:5000/v2/_catalog
 
 # run
 ```bash
-docker pull docker.insocl.com:5000/worker  
+docker pull docker.insocl.com:5000/worker
+
+
+docker image rm $(docker image ls -a -q)
+docker container rm $(docker container ls -a -q)
+docker service create --name master docker.insocl.com:5000/master  
 docker service create --name worker docker.insocl.com:5000/worker  
 ```
 
