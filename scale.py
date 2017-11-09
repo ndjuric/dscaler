@@ -5,7 +5,7 @@ from controllers import *
 
 # temporary
 def build_infrastucture():
-    doctl = Digitalocean(DOCTL, PK_FILE, 'makonda', SWARM_DIR)
+    doctl = Digitalocean(DOCTL, PK_FILE, 'makonda', SWARM_DIR, SCRIPT_CREATE, SCRIPT_JOIN)
 
     number_of_nodes = int(doctl.get_number_of_nodes('manager')) + int(doctl.get_number_of_nodes('worker'))
     if int(number_of_nodes) == 0:

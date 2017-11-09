@@ -8,7 +8,7 @@ from .ssh import SSH
 class Digitalocean(SSH):
     """ Digitalocean infrastructure management class """
 
-    def __init__(self, doctl_path, public_key_file, tag, swarm_dir):
+    def __init__(self, doctl_path, public_key_file, tag, swarm_dir, script_create, script_join):
         super(Digitalocean, self).__init__()
         self.doctl = doctl_path
         self.filter_tag = tag
@@ -16,6 +16,8 @@ class Digitalocean(SSH):
         self.allowed_node_types = ['manager', 'worker']
         self.ssh_key = self.get_local_fingerprint(public_key_file)
         self.swarm_dir = swarm_dir
+        self.script_create = script_create
+        self.script_join = script_join
 
         if not os.path.exists(swarm_dir):
             os.makedirs(swarm_dir)
@@ -109,7 +111,7 @@ class Digitalocean(SSH):
 
     def remove_manager(self):
         node_type = 'manager'
-        number_of_managers = self.get_number_of_nodes()
+        number_of_managers = self.get_number_of_nodes(node_type)
 
         if int(number_of_managers) < 2:
             print("You need at least 2 managers in order to remove 1 manager.")
@@ -160,14 +162,14 @@ class Digitalocean(SSH):
 
     def generate_swarm_join(self, swarm_key, droplet_ip):
         fh = open(self.swarm_dir + '/join.sh', 'w')
-        fh.write(SCRIPT_JOIN.format(swarm_key, droplet_ip))
+        fh.write(self.script_join.format(swarm_key, droplet_ip))
         fh.close()
 
     ''' Generate a swarm create script and write it to a file. '''
 
     def generate_swarm_create(self):
         fh = open(self.swarm_dir + '/create.sh', 'w')
-        fh.write(SCRIPT_CREATE)
+        fh.write(self.script_create)
         fh.close()
 
     ''' Swarm join functionality, this needs to be refactored'''
