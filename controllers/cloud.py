@@ -20,8 +20,9 @@ class Cloud(object):
 
         if not os.path.exists(swarm_dir):
             os.makedirs(swarm_dir)
-        
+
     def build(self):
+        """ Build a seed swarm. Same VM is both manager and a worker. """
         number_of_nodes = int(self.doctl.get_number_of_droplets_by_tag('manager'))
         number_of_nodes += int(self.doctl.get_number_of_droplets_by_tag('worker'))
         if int(number_of_nodes) == 0:
@@ -31,33 +32,32 @@ class Cloud(object):
         print('Swarm already exists.')
 
     def destroy(self):
+        """ Destroy everything!!! """
         self.doctl.destroy_droplets()
 
     def deploy(self):
+        """ Redeploy the projects, takes about ~25 seconds. """
         manager = self.doctl.get_single_droplet_by_tag('manager')
         self.docker.swarm_deploy(manager['ip'])
 
-    ''' Generate a swarm join script and write it to a file. '''
-
     def generate_swarm_join_script(self, swarm_key, droplet_ip):
+        """ Generate a swarm join script and write it to a file. """
         join_script_path = self.swarm_dir + '/join.sh'
         fh = open(join_script_path, 'w')
         fh.write(self.script_join.format(swarm_key, droplet_ip))
         fh.close()
         return join_script_path
 
-    ''' Generate a swarm create script and write it to a file. '''
-
     def generate_swarm_create_script(self):
+        """ Generate a swarm create script and write it to a file. """
         create_script_path = self.swarm_dir + '/create.sh'
         fh = open(create_script_path, 'w')
         fh.write(self.script_create)
         fh.close()
         return create_script_path
 
-    ''' Swarm join functionality, this needs to be refactored'''
-
     def swarm_join(self, manager, node_type='worker'):
+        """ Swarm join functionality, this needs to be refactored"""
         swarm_key = self.docker.get_swarm_key(manager['ip'], node_type)
 
         boot_script_path = self.generate_swarm_join_script(swarm_key, manager['ip'])
@@ -67,9 +67,9 @@ class Cloud(object):
         self.doctl.create_droplet(node_type, boot_script_path)
         return True
 
-    ''' Use provided tag to lookup swarm status. If there's no swarm bring up a VM and set it up as a swarm manager. '''
-
     def add_manager(self):
+        """ Use provided tag to lookup swarm status. 
+        If there's no swarm bring up a VM and set it up as a swarm manager."""
         node_type = "manager"
         manager = self.doctl.get_single_droplet_by_tag(node_type)
 
@@ -82,9 +82,8 @@ class Cloud(object):
         self.doctl.create_droplet(node_type, boot_script_path, wait=True)
         return True
 
-    ''' Add a worker VM to Digitalocean. Use provided tag to join a swarm, if swarm manager VM exists. '''
-
     def add_worker(self):
+        """ Add a worker VM to Digitalocean. Use provided tag to join a swarm, if swarm manager VM exists. """
         manager = self.doctl.get_single_droplet_by_tag('manager')
 
         if manager is not False:
@@ -95,6 +94,7 @@ class Cloud(object):
         return False
 
     def remove_worker(self):
+        """ Remove a random swarm worker and destroy the droplet where it was located. """
         node_type = 'worker'
         worker_info = self.doctl.get_single_droplet_by_tag(node_type)
         if not worker_info:
@@ -107,6 +107,8 @@ class Cloud(object):
             self.doctl.purge_droplet(worker_info['name'])
 
     def remove_manager(self):
+        """ Remove the swarm manager and destroy the droplet where it was located
+        (at least 2 managers needed for this). """
         node_type = 'manager'
         number_of_managers = self.doctl.get_number_of_droplets_by_tag(node_type)
 

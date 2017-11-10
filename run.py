@@ -4,13 +4,13 @@
 import sys
 import time
 
-from config import *
 from controllers import *
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
 def get_parser():
     parse = ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsHelpFormatter)
+
     parse.add_argument("-t", "--tag",
                        dest="tag",
                        required=True,
@@ -19,6 +19,7 @@ def get_parser():
                        dest="action",
                        required=True,
                        help="Action to execute on the infrastructure.")
+
     return parse
 
 
@@ -33,7 +34,8 @@ def main(tag, action):
 
     instance = 'cloud'
     if action in CALL_MAP:
-        eval('{0}.{1}()'.format(instance, action))
+        expression = '{0}.{1}()'.format(instance, action)
+        eval(expression)
 
     end_time = time.time()
 
@@ -41,6 +43,7 @@ def main(tag, action):
 
 
 if __name__ == '__main__':
+    ''' CALL_MAP is a list enumerating methods from the Cloud class the are allowed to be directly executed. '''
     CALL_MAP = [
         'build',
         'deploy',
@@ -55,8 +58,12 @@ if __name__ == '__main__':
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
+
     args = parser.parse_args()
+
     if args.action not in CALL_MAP:
-        print('"{0}" action not allowed'.format(args.action))
-        print('List of allowed actions: {0}'.format(CALL_MAP))
+        print('"{0}" either does not exist or you do not have the permission to execute it.'.format(args.action))
+        print('You can execute the following methods: {0}'.format(CALL_MAP))
+        sys.exit(1)
+
     main(args.tag, args.action)
