@@ -19,5 +19,11 @@ Validating token: OK
 
 # run the scaling script
 ```bash
-$ python scaler.py
+$ python run.py -t makonda -a build
+$ python run.py -t makonda -a destroy
+$ python run.py -t makonda -a deploy
+$ python run.py -t makonda -a add_worker
+$ python run.py -t makonda -a add_manager
+$ python run.py -t makonda -a remove_worker
+$ python run.py -t makonda -a remove_manager
 ```
