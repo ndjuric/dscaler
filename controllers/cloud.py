@@ -147,17 +147,10 @@ class Cloud(SSH):
             print('There are no managers in this swarm. Does the swarm exist???')
             return False
 
-        filter_str = 'master'
-        containers = self.docker.get_containers_by_substring(manager_info['ip'], filter_str)
-        containers_len = len(containers)
-        if containers_len == 0:
-            print('No containers found for "{0}"'.format(filter_str))
-            return False
-        if containers_len > 1:
-            print('Multiple containers found for "{0}". There can be only one master.'.format(filter_str))
-            return False
-        container = containers[0]
-        print('"{0}" found in {1}'.format(filter_str, container))
+        container = self.docker.get_master_container(manager_info['ip'])
+        if not container:
+            print('Container not found')
+
         print(
             "ssh -o \"StrictHostKeyChecking no\" %s@%s \"%s\"" % (
                 'root',
@@ -165,6 +158,23 @@ class Cloud(SSH):
                 'docker logs -f {0}'.format(container)
             )
         )
-        # logs = self.remote_exec('root', manager_info['ip'], 'docker logs {0}'.format(container))
-        # for line in logs:
-        #    print line.rstrip()
+
+    def master_container(self):
+        """ Get shell command for master container. """
+        manager_info = self.doctl.get_single_droplet_by_tag('manager')
+        if not manager_info:
+            print('There are no managers in this swarm. Does the swarm exist???')
+            return False
+
+        container = self.docker.get_master_container(manager_info['ip'])
+        if not container:
+            print('Container not found')
+            return False
+
+        print(
+            "ssh -o \"StrictHostKeyChecking no\" %s@%s \"%s\"" % (
+                'root',
+                manager_info['ip'],
+                'docker exec -it {0} bash'.format(container)
+            )
+        )

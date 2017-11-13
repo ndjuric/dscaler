@@ -53,7 +53,8 @@ if __name__ == '__main__':
         'ssh_manager',
         'logs_master',
         'remove_worker',
-        'remove_manager'
+        'remove_manager',
+        'master_container'
     ]
 
     parser = get_parser()
