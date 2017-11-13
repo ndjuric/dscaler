@@ -50,6 +50,8 @@ if __name__ == '__main__':
         'destroy',
         'add_worker',
         'add_manager',
+        'ssh_manager',
+        'logs_master',
         'remove_worker',
         'remove_manager'
     ]

@@ -7,10 +7,13 @@ import time
 from config import *
 from .digitalocean import Digitalocean
 from .docker import Docker
+from .ssh import SSH
 
 
-class Cloud(object):
+class Cloud(SSH):
     def __init__(self, tag, swarm_dir=SWARM_DIR, script_create=SCRIPT_CREATE, script_join=SCRIPT_JOIN):
+        """ Cloud orchestration class. """
+        super(Cloud, self).__init__()
         self.doctl = Digitalocean(DOCTL, PK_FILE, tag)
         self.docker = Docker()
 
@@ -126,3 +129,42 @@ class Cloud(object):
         time.sleep(2)
         self.docker.demote_manager(manager_info['ip'], manager_info['name'])
         self.doctl.purge_droplet(manager_info['name'])
+
+    def ssh_manager(self):
+        """ SSH to a swarm manager. """
+        manager_info = self.doctl.get_single_droplet_by_tag('manager')
+        if not manager_info:
+            print('SSH failed, there are no managers in this swarm. Does the swarm exist???')
+            return False
+
+        print("ssh -o \"StrictHostKeyChecking no\" %s@%s" % ('root', manager_info['ip']))
+        return True
+
+    def logs_master(self):
+        """ Show master cruncher logs from the swarm. """
+        manager_info = self.doctl.get_single_droplet_by_tag('manager')
+        if not manager_info:
+            print('There are no managers in this swarm. Does the swarm exist???')
+            return False
+
+        filter_str = 'master'
+        containers = self.docker.get_containers_by_substring(manager_info['ip'], filter_str)
+        containers_len = len(containers)
+        if containers_len == 0:
+            print('No containers found for "{0}"'.format(filter_str))
+            return False
+        if containers_len > 1:
+            print('Multiple containers found for "{0}". There can be only one master.'.format(filter_str))
+            return False
+        container = containers[0]
+        print('"{0}" found in {1}'.format(filter_str, container))
+        print(
+            "ssh -o \"StrictHostKeyChecking no\" %s@%s \"%s\"" % (
+                'root',
+                manager_info['ip'],
+                'docker logs -f {0}'.format(container)
+            )
+        )
+        # logs = self.remote_exec('root', manager_info['ip'], 'docker logs {0}'.format(container))
+        # for line in logs:
+        #    print line.rstrip()

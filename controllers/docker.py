@@ -44,3 +44,14 @@ class Docker(SSH):
         """ Get docker swarm key """
         result = self.remote_exec('root', ip, 'docker swarm join-token -q {0}'.format(node_type))
         return ''.join(result)
+
+    def get_containers_by_substring(self, ip, substring):
+        container_output = self.remote_exec('root', ip, 'docker container ls')
+        containers = []
+        for line in container_output:
+            if 'CONTAINER ID' in line:
+                continue
+            if substring in line:
+                details = line.split()
+                containers.append(details[0])
+        return containers

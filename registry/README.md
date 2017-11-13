@@ -36,3 +36,20 @@ docker service create --name master docker.insocl.com:5000/master
 docker service create --name worker docker.insocl.com:5000/worker  
 ```
 
+# bring up nfs on docker-registry-server
+```bash
+$ apt-get update  
+$ apt-get install nfs-kernel-server
+$ mkdir /var/nfs/general -p
+$ chown nobody:nogroup /var/nfs/general
+$ vi /etc/exports
+     + /var/nfs/general 10.0.0.0/8(rw,sync,no_subtree_check)                                                               │Thank you for using DigitalOcean's Docker Application.
+     + /home 10.0.0.0/8(rw,sync,no_root_squash,no_subtree_check)
+   
+$ sudo ufw allow from 10.0.0.0/8 to any port nfs
+```
+
+# set up nfs mounts on nfs client (workers or master)
+```bash
+mount 10.135.69.119:/var/nfs/general /nfs/general/
+```
