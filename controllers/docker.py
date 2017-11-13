@@ -46,6 +46,7 @@ class Docker(SSH):
         return ''.join(result)
 
     def get_containers_by_substring(self, ip, substring):
+        """ Get a list of containers filtered by substring. """
         container_output = self.remote_exec('root', ip, 'docker container ls')
         containers = []
         for line in container_output:
@@ -55,3 +56,16 @@ class Docker(SSH):
                 details = line.split()
                 containers.append(details[0])
         return containers
+
+    def get_master_container(self, ip):
+        """ Get master container ID. """
+        filter_str = 'master'
+        containers = self.get_containers_by_substring(ip, filter_str)
+        containers_len = len(containers)
+        if containers_len == 0:
+            print('No containers found for "{0}"'.format(filter_str))
+            return False
+        if containers_len > 1:
+            print('Multiple containers found for "{0}". There can be only one master.'.format(filter_str))
+            return False
+        return containers[0]
