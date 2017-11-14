@@ -5,6 +5,7 @@ import sys
 import time
 
 from controllers import *
+from config import CALL_MAP
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
@@ -43,20 +44,6 @@ def main(tag, action):
 
 
 if __name__ == '__main__':
-    ''' CALL_MAP is a list enumerating methods from the Cloud class the are allowed to be directly executed. '''
-    CALL_MAP = [
-        'build',
-        'deploy',
-        'destroy',
-        'add_worker',
-        'add_manager',
-        'ssh_manager',
-        'logs_master',
-        'remove_worker',
-        'remove_manager',
-        'master_container'
-    ]
-
     parser = get_parser()
     if len(sys.argv) == 1:
         parser.print_help()

@@ -10,6 +10,20 @@ DOCKER_REGISTRY = {
 }
 NFS_SERVER = '10.135.69.119'
 
+''' CALL_MAP is a list enumerating methods from the Cloud class the are allowed to be directly executed. '''
+CALL_MAP = [
+    'build',
+    'deploy',
+    'destroy',
+    'add_worker',
+    'add_manager',
+    'ssh_manager',
+    'logs_master',
+    'remove_worker',
+    'remove_manager',
+    'get_master_container_id'
+]
+
 SCRIPT_CREATE = "#!/bin/bash\n"
 SCRIPT_CREATE += "apt-get install -y nfs-common\n"
 SCRIPT_CREATE += "mkdir /nfs\n"
