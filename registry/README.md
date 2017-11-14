@@ -53,3 +53,8 @@ $ sudo ufw allow from 10.0.0.0/8 to any port nfs
 ```bash
 mount 10.135.69.119:/var/nfs/general /nfs/general/
 ```
+
+# run build hook
+```bash
+./build-hook -t 2xcrx33 -c './build.sh' --port 1990
+```
