@@ -26,10 +26,12 @@ class API(object):
 
     @staticmethod
     def http_error_handler(error):
+        """ Display errors as JSON. """
         return jsonify({'status': False, 'message': '{0}'.format(error)})
 
     @staticmethod
     def is_json(json_string):
+        """ Check if the provided string is valid JSON. """
         try:
             json_object = json.loads(json_string)
         except ValueError, e:
@@ -37,7 +39,7 @@ class API(object):
         return True
 
     def swarm(self):
-        """ Route: /swarm """
+        """ Route: /swarm | Method: POST """
         if not self.is_json(request.get_data()):
             return jsonify({'status': False, 'message': 'Invalid json format.'})
 
