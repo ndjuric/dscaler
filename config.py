@@ -39,11 +39,8 @@ SCRIPT_CREATE += "--network swarmnet "
 SCRIPT_CREATE += "--name master "
 SCRIPT_CREATE += "--mount type=bind,source=/nfs,target=/nfs {0} \n".format(DOCKER_REGISTRY['master'])
 
-SCRIPT_CREATE += "docker service create --network {0} --name {1} {2}\n".format(
-    'swarmnet',
-    'worker',
-    DOCKER_REGISTRY['worker']
-)
+SCRIPT_CREATE += "docker service create --network swarmnet --name worker {0}\n".format(DOCKER_REGISTRY['worker'])
+SCRIPT_CREATE += "docker service scale worker=5\n"
 
 SCRIPT_JOIN = "#!/bin/bash\n"
 SCRIPT_JOIN += "apt-get install -y nfs-common\n"

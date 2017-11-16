@@ -36,7 +36,8 @@ def main(tag, action):
     instance = 'cloud'
     if action in CALL_MAP:
         expression = '{0}.{1}()'.format(instance, action)
-        eval(expression)
+        result = eval(expression)
+        print(result)
 
     end_time = time.time()
 

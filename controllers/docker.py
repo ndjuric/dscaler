@@ -20,8 +20,9 @@ class Docker(SSH):
         commands += 'docker service rm master;'
         commands += 'docker image rm $(docker image ls -a -q) -f;'
         commands += 'docker container rm $(docker container ls -a -q) -f;'
-        commands += 'docker service create --network {0} --name {1} {2};'.format('swarmnet', 'master', repo['master'])
-        commands += 'docker service create --network {0} --name {1} {2}'.format('swarmnet', 'worker', repo['worker'])
+        commands += 'docker service create --network swarmnet --name master '
+        commands += '--mount type=bind,source=/nfs,target=/nfs {0};'.format(repo['master'])
+        commands += 'docker service create --network swarmnet --name worker {0}'.format(repo['worker'])
 
         return self.remote_exec('root', swarm_manager_ip, commands)
 
