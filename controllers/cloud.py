@@ -72,8 +72,7 @@ class Cloud(SSH):
         return {'status': True, 'message': 'Joined {0}@{1}'.format(manager['name'], manager['ip'])}
 
     def add_manager(self):
-        """ Use provided tag to lookup swarm status. 
-        If there's no swarm bring up a VM and set it up as a swarm manager."""
+        """ Lookup swarm status. If there's no swarm bring up a VM and set it up as a swarm manager."""
         node_type = "manager"
         manager = self.doctl.get_single_droplet_by_tag(node_type)
 
