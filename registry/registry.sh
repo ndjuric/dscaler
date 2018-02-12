@@ -1,2 +1,2 @@
 #!/bin/bash
-ssh root@docker.insocl.com
+ssh root@private.docker.registry.example.com

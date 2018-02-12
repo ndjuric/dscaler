@@ -19,11 +19,11 @@ Validating token: OK
 
 # run the scaling script
 ```bash
-$ python cli.py -t makonda -a build
-$ python cli.py -t makonda -a destroy
-$ python cli.py -t makonda -a deploy
-$ python cli.py -t makonda -a add_worker
-$ python cli.py -t makonda -a add_manager
-$ python cli.py -t makonda -a remove_worker
-$ python cli.py -t makonda -a remove_manager
+$ python cli.py -t tagPrefix -a build
+$ python cli.py -t tagPrefix -a destroy
+$ python cli.py -t tagPrefix -a deploy
+$ python cli.py -t tagPrefix -a add_worker
+$ python cli.py -t tagPrefix -a add_manager
+$ python cli.py -t tagPrefix -a remove_worker
+$ python cli.py -t tagPrefix -a remove_manager
 ```

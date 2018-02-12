@@ -11,8 +11,8 @@ class Docker(SSH):
     def swarm_deploy(self, swarm_manager_ip):
         """ Deploy image to the swarm master """
         repo = {
-            'master': 'docker.insocl.com:5000/master',
-            'worker': 'docker.insocl.com:5000/worker'
+            'master': 'private.docker.registry.example.com:5000/master',
+            'worker': 'private.docker.registry.example.com:5000/worker'
         }
         commands = 'docker service scale master=0;'
         commands += 'docker service scale worker=0;'

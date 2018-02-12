@@ -6,8 +6,8 @@ services:
     ports:
       - 5000:5000
     environment:
-      REGISTRY_HTTP_TLS_CERTIFICATE: /certs/live/docker.insocl.com/fullchain.pem
-      REGISTRY_HTTP_TLS_KEY: /certs/live/docker.insocl.com/privkey.pem
+      REGISTRY_HTTP_TLS_CERTIFICATE: /certs/live/private.docker.registry.example.com/fullchain.pem
+      REGISTRY_HTTP_TLS_KEY: /certs/live/private.docker.registry.example.com/privkey.pem
     volumes:
       - ./registry:/var/lib/registry
       - ./letsencrypt/:/certs
@@ -22,7 +22,7 @@ services:
       - registry
     environment:
       EMAIL: "metod303@gmail.com"
-      DOMAIN: "docker.insocl.com"
+      DOMAIN: "private.docker.registry.example.com"
       UPSTREAM: "registry:80"
     ports:
       - "80:80"

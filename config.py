@@ -5,8 +5,8 @@ PK_FILE = "/home/ndjuric/.ssh/id_rsa.pub"
 SWARM_DIR = TAG = "swarm"
 OVERLAY_NETWORK = "swarmnet"
 DOCKER_REGISTRY = {
-    'master': 'docker.insocl.com:5000/master',
-    'worker': 'docker.insocl.com:5000/worker'
+    'master': 'private.docker.registry.example.com:5000/master',
+    'worker': 'private.docker.registry.example.com:5000/worker'
 }
 NFS_SERVER = '10.135.69.119'
 
