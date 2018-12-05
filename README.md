@@ -1,5 +1,5 @@
 # dscaler
-Digitalocean infrastructure scaling for docker swarms.  
+Digitalocean infrastructure scaling for docker swarms. Partial functionality.
 Under heavy development.
 
 # install doctl
