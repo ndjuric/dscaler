@@ -1,13 +1,13 @@
 # disclaimer
-this is a dirty hack. 
-at the time when I was using this my internet speed was abysmal and I used digitalocean to test swarm mode.
-due to slow internet uploading full containers was out of the question.
-i was also too lazy to set up jenkins or some such :)
-what this does is basically run a webserver on some port protected with a key.
-when i send a curl request to the webserver it runs a build.sh script.
-that script performs a git pull- I would beforehand push my docker files to git.
-after git pull it builds containers and  pushes them to the registry.
-now my swarm members could pull new containers!
+this is a dirty hack.    
+at the time when I was using this my internet speed was abysmal and I used digitalocean to test swarm mode.  
+due to slow internet uploading full containers was out of the question.  
+i was also too lazy to set up jenkins or some such :) . 
+what this does is basically run a webserver on some port protected with a key.  
+when i send a curl request to the webserver it runs a build.sh script.  
+that script performs a git pull- I would beforehand push my docker files to git.  
+after git pull it builds containers and  pushes them to the registry.  
+now my swarm members could pull new containers!  
 
 # notes
 Private keys need to be copied to the docker registry server from a machine that has access
