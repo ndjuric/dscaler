@@ -1,5 +1,5 @@
 # disclaimer
-this is a dirty hack.    
+this is a dirty not-secure hack and I only commited it here as a note to self.
 at the time when I was using this my internet speed was abysmal and I used digitalocean to test swarm mode.  
 due to slow internet uploading full containers was out of the question.  
 i was also too lazy to set up jenkins or some such :) . 
